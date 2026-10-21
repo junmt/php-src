@@ -330,6 +330,22 @@ void shutdown_executor(TSRMLS_D) /* {{{ */
 
 	zend_shutdown_fpu(TSRMLS_C);
 
+	/* May be used by zend_error() before init_executor(), e.g. for INI
+	 * diagnostics of the next request. A bailout may have left these
+	 * pointing into this request's freed heap. */
+	EG(user_error_handler) = NULL;
+	EG(user_exception_handler) = NULL;
+	memset(&EG(user_error_handlers_error_reporting), 0, sizeof(EG(user_error_handlers_error_reporting)));
+	memset(&EG(user_error_handlers), 0, sizeof(EG(user_error_handlers)));
+	memset(&EG(user_exception_handlers), 0, sizeof(EG(user_exception_handlers)));
+	EG(error_handling) = EH_NORMAL;
+	EG(exception_class) = NULL;
+	EG(exception) = NULL;
+	EG(prev_exception) = NULL;
+	EG(opline_before_exception) = NULL;
+	EG(current_execute_data) = NULL;
+	EG(in_execution) = 0;
+
 	EG(active) = 0;
 }
 /* }}} */

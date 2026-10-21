@@ -2,6 +2,13 @@ PHP                                                                        NEWS
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 ?? ??? 2019, PHP 5.6.41
 
+- Core:
+  . Partial backport of the fix for GHSA-w8hw-w9fx-j79w, GHSA-6wmf-4rv5-p3rp
+    (Avoid state corruption via bailout). (CVE-2026-109618, CVE-2026-109619)
+    The soft/hard OOM rework of PHP 8.2.35 is not backported: keep
+    memory_limit=-1 enforced and session.upload_progress.enabled=0 where
+    possible.
+
 10 Jan 2019, PHP 5.6.40
 
 - GD:

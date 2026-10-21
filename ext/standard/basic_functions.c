@@ -3448,6 +3448,7 @@ static void basic_globals_ctor(php_basic_globals *basic_globals_p TSRMLS_DC) /* 
 	BG(user_tick_functions) = NULL;
 	BG(user_filter_map) = NULL;
 	BG(serialize_lock) = 0;
+	BG(incomplete_classes_only) = 0;
 
 	memset(&BG(serialize), 0, sizeof(BG(serialize)));
 	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
@@ -3711,11 +3712,25 @@ PHP_MSHUTDOWN_FUNCTION(basic) /* {{{ */
 }
 /* }}} */
 
+/* Called from php_request_startup(), before any request data is processed. */
+PHPAPI void php_basic_early_rinit(TSRMLS_D) /* {{{ */
+{
+	/* The session upload progress handler (un)serializes the session from
+	 * php_hash_environment(), before RINIT. A previous request that was
+	 * aborted by a bailout may have left these pointing into its freed heap. */
+	BG(serialize_lock) = 0;
+	BG(incomplete_classes_only) = 0;
+	memset(&BG(serialize), 0, sizeof(BG(serialize)));
+	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
+}
+/* }}} */
+
 PHP_RINIT_FUNCTION(basic) /* {{{ */
 {
 	memset(BG(strtok_table), 0, 256);
 
 	BG(serialize_lock) = 0;
+	BG(incomplete_classes_only) = 0;
 	memset(&BG(serialize), 0, sizeof(BG(serialize)));
 	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
 
