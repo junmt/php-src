@@ -249,12 +249,6 @@ static int fill_buffer(multipart_buffer *self TSRMLS_DC)
 
 	self->buf_begin = self->buffer;
 
-	/* Stop reading once post_max_size is exceeded, even when the request
-	 * did not declare a usable Content-Length */
-	if (SG(post_max_size) > 0 && SG(read_post_bytes) > SG(post_max_size)) {
-		return 0;
-	}
-
 	/* calculate the free space in the buffer */
 	bytes_to_read = self->bufsize - self->bytes_in_buffer;
 
@@ -406,14 +400,6 @@ static int find_boundary(multipart_buffer *self, char *boundary TSRMLS_DC)
 	return 0;
 }
 
-static int php_mime_should_save_hdr(const char *name)
-{
-	return !strcasecmp(name, "Content-Disposition")
-		|| !strcasecmp(name, "Content-Type");
-}
-
-static char *php_mime_get_hdr_value(zend_llist header, char *key);
-
 /* parse headers */
 static int multipart_buffer_headers(multipart_buffer *self, zend_llist *header TSRMLS_DC)
 {
@@ -455,16 +441,10 @@ static int multipart_buffer_headers(multipart_buffer *self, zend_llist *header T
 			}
 
 			*value = '\0';
+			do { value++; } while(isspace(*value));
 
-			/* Keep only headers we use, and ignore duplicates */
-			if (!php_mime_should_save_hdr(line)
-					|| php_mime_get_hdr_value(*header, line)) {
-				key = NULL;
-			} else {
-				key = estrdup(line);
-				do { value++; } while(isspace(*value));
-				smart_str_appends(&buf_value, value);
-			}
+			key = estrdup(line);
+			smart_str_appends(&buf_value, value);
 		} else if (buf_value.c) { /* If no ':' on the line, add to previous line */
 			smart_str_appends(&buf_value, line);
 		} else {
@@ -1307,9 +1287,6 @@ SAPI_API SAPI_POST_HANDLER_FUNC(rfc1867_post_handler) /* {{{ */
 	}
 
 fileupload_done:
-	if (SG(post_max_size) > 0 && SG(read_post_bytes) > SG(post_max_size)) {
-		sapi_module.sapi_error(E_WARNING, "Actual POST length does not match Content-Length, and exceeds %ld bytes", SG(post_max_size));
-	}
 	if (php_rfc1867_callback != NULL) {
 		multipart_event_end event_end;
 

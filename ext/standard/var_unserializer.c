@@ -343,14 +343,6 @@ static inline size_t parse_uiv(const unsigned char *p)
 #define UNSERIALIZE_PARAMETER zval **rval, const unsigned char **p, const unsigned char *max, php_unserialize_data_t *var_hash TSRMLS_DC
 #define UNSERIALIZE_PASSTHRU rval, p, max, var_hash TSRMLS_CC
 
-/* The members that incomplete_classes_only mode writes itself: the class name
- * of every object, and the payload kept for C: entries. */
-static inline int is_incomplete_class_reserved_member(const char *name, int name_len)
-{
-	return (name_len == sizeof(MAGIC_MEMBER) - 1 && !memcmp(name, MAGIC_MEMBER, name_len))
-		|| (name_len == sizeof(MAGIC_MEMBER_SERIALIZED) - 1 && !memcmp(name, MAGIC_MEMBER_SERIALIZED, name_len));
-}
-
 static inline int process_nested_data(UNSERIALIZE_PARAMETER, HashTable *ht, long elements, int objprops)
 {
 	while (elements-- > 0) {
@@ -364,15 +356,6 @@ static inline int process_nested_data(UNSERIALIZE_PARAMETER, HashTable *ht, long
 		}
 
 		if (Z_TYPE_P(key) != IS_LONG && Z_TYPE_P(key) != IS_STRING) {
-            var_push_dtor_no_addref(var_hash, &key);
-			return 0;
-		}
-
-		if (objprops && BG(incomplete_classes_only) && Z_TYPE_P(key) == IS_STRING
-				&& is_incomplete_class_reserved_member(Z_STRVAL_P(key), Z_STRLEN_P(key))) {
-			/* Data that already carries one of the members written by
-			 * incomplete_classes_only mode cannot be told apart from that
-			 * bookkeeping, so it is rejected rather than silently overwritten. */
             var_push_dtor_no_addref(var_hash, &key);
 			return 0;
 		}
@@ -431,7 +414,7 @@ static inline int finish_nested_data(UNSERIALIZE_PARAMETER)
 	return 1;
 }
 
-static inline int object_custom(UNSERIALIZE_PARAMETER, zend_class_entry *ce, int keep_payload)
+static inline int object_custom(UNSERIALIZE_PARAMETER, zend_class_entry *ce)
 {
 	long datalen;
 
@@ -444,16 +427,7 @@ static inline int object_custom(UNSERIALIZE_PARAMETER, zend_class_entry *ce, int
 		return 0;
 	}
 
-	if (keep_payload) {
-		/* The class was not resolved (see php_var_set_incomplete_classes_only()):
-		 * keep the payload verbatim, so that the object serializes back to the same bytes. */
-		zval *payload;
-
-		object_init_ex(*rval, ce);
-		MAKE_STD_ZVAL(payload);
-		ZVAL_STRINGL(payload, (char *) *p, datalen, 1);
-		zend_hash_update(Z_OBJPROP_PP(rval), MAGIC_MEMBER_SERIALIZED, sizeof(MAGIC_MEMBER_SERIALIZED), &payload, sizeof(payload), NULL);
-	} else if (ce->unserialize == NULL) {
+	if (ce->unserialize == NULL) {
 		zend_error(E_WARNING, "Class %s has no unserializer", ce->name);
 		object_init_ex(*rval, ce);
 	} else if (ce->unserialize(rval, ce, (const unsigned char*)*p, datalen, (zend_unserialize_data *)var_hash TSRMLS_CC) != SUCCESS) {
@@ -747,13 +721,6 @@ yy20:
 	class_name = estrndup(class_name, len);
 
 	do {
-		if (BG(incomplete_classes_only)) {
-			/* Do not look the class up at all, so that no user code can run. */
-			incomplete_class = 1;
-			ce = PHP_IC_ENTRY;
-			break;
-		}
-
 		/* Try to find class directly */
 		BG(serialize_lock)++;
 		if (zend_lookup_class(class_name, len2, &pce TSRMLS_CC) == SUCCESS) {
@@ -833,7 +800,7 @@ yy20:
 	if (custom_object) {
 		int ret;
 
-		ret = object_custom(UNSERIALIZE_PASSTHRU, ce, BG(incomplete_classes_only));
+		ret = object_custom(UNSERIALIZE_PASSTHRU, ce);
 
 		if (ret && incomplete_class) {
 			php_store_class_name(*rval, class_name, len2);

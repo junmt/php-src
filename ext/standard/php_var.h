@@ -50,11 +50,6 @@ struct php_unserialize_data {
 typedef struct php_unserialize_data* php_unserialize_data_t;
 
 PHPAPI void php_var_serialize(smart_str *buf, zval **struc, php_serialize_data_t *var_hash TSRMLS_DC);
-/* Represent every object as __PHP_Incomplete_Class when unserializing, without
- * resolving its class: no autoloading, no unserialize_callback_func, no
- * __wakeup() or Serializable::unserialize(). O: and C: values serialize back
- * to the same bytes. No user code may run while this is enabled. */
-PHPAPI void php_var_set_incomplete_classes_only(zend_bool incomplete_classes_only TSRMLS_DC);
 PHPAPI int php_var_unserialize(zval **rval, const unsigned char **p, const unsigned char *max, php_unserialize_data_t *var_hash TSRMLS_DC);
 
 #define PHP_VAR_SERIALIZE_INIT(var_hash_ptr) \

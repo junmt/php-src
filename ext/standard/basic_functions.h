@@ -230,10 +230,6 @@ typedef struct _php_basic_globals {
 #endif
 
 	int umask;
-
-	/* var.c: see php_var_set_incomplete_classes_only(). Kept at the end of
-	 * the struct so that the layout of the other members does not change. */
-	zend_bool incomplete_classes_only;
 } php_basic_globals;
 
 #ifdef ZTS
@@ -265,7 +261,6 @@ PHPAPI extern zend_bool register_user_shutdown_function(char *function_name, siz
 PHPAPI extern zend_bool remove_user_shutdown_function(char *function_name, size_t function_len TSRMLS_DC);
 PHPAPI extern zend_bool append_user_shutdown_function(php_shutdown_function_entry shutdown_function_entry TSRMLS_DC);
 
-PHPAPI void php_basic_early_rinit(TSRMLS_D);
 PHPAPI void php_call_shutdown_functions(TSRMLS_D);
 PHPAPI void php_free_shutdown_functions(TSRMLS_D);
 
